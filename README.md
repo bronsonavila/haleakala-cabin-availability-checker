@@ -24,14 +24,14 @@ This Google Apps Script project automatically checks for cabin availability at H
 
 6. Set up the trigger:
 
-   - Run the `setTrigger()` function to create an hourly trigger for the script.
+   - Run the `setTrigger()` function to create a 30-minute trigger for the script.
 
 7. Initialize the script:
    - Run the `checkCabinAvailability()` function once manually to initialize the `previousState`. This sets the initial state to check for subsequent changes when the automatic trigger runs.
 
 ## Usage
 
-Once set up, the script will run automatically every hour, checking for new availability and sending email notifications when changes are detected. The script performs the following actions:
+Once set up, the script will run automatically every 30 minutes, checking for new availability and sending email notifications when changes are detected. The script performs the following actions:
 
 1. Fetches the cabin availability data from the Haleakalā National Park reservation website.
 2. Parses the data to extract availability information for each cabin.

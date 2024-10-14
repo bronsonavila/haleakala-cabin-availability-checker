@@ -141,5 +141,5 @@ function setTrigger() {
 
   triggers.forEach(trigger => ScriptApp.deleteTrigger(trigger))
 
-  ScriptApp.newTrigger('checkCabinAvailability').timeBased().everyHours(1).create()
+  ScriptApp.newTrigger('checkCabinAvailability').timeBased().everyMinutes(30).create()
 }
