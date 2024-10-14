@@ -1,0 +1,19 @@
+{
+  "name": "haleakala-cabin-availability-checker",
+  "version": "1.0.0",
+  "description": "Automatically checks for cabin availability at Haleakalā National Park and sends email notifications",
+  "main": "Code.gs",
+  "author": "Bronson Avila <bronson.avila@gmail.com>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/bronsonavila/haleakala-cabin-availability-checker.git"
+  },
+  "keywords": [
+    "haleakala",
+    "cabin",
+    "availability",
+    "checker",
+    "google-apps-script"
+  ]
+}
