@@ -3,13 +3,14 @@
 const APP_PROPERTIES = {
   ADMIN_EMAIL: 'adminEmail',
   EMAIL_RECIPIENTS: 'emailRecipients',
-  PREVIOUS_STATE: 'previousState'
+  PREVIOUS_STATE: 'previousState',
+  SENT_NOTIFICATIONS: 'sentNotifications'
 }
 
 const CAMPGROUND = {
   ID: '234783',
   NAME: 'Haleakalā National Park',
-  RESERVATION_URL: 'https://www.recreation.gov/camping/campgrounds/234783'
+  RESERVATION_URL: 'https://www.recreation.gov/camping/campgrounds/234783/itinerary'
 }
 
 const EMAIL_ADDRESSES = {
@@ -32,6 +33,8 @@ const POTENTIALLY_RESERVABLE_STATUSES = [
 
 function checkCabinAvailability() {
   try {
+    purgeOldNotifications()
+
     const today = new Date()
     const cabins = []
 
@@ -51,13 +54,48 @@ function checkCabinAvailability() {
 
     if (changes.length > 0) sendEmailToRecipients(changes)
 
-    // Store the current state for future comparisons.
     PropertiesService.getScriptProperties().setProperty(APP_PROPERTIES.PREVIOUS_STATE, JSON.stringify(cabins))
   } catch (error) {
     console.error('Error in checkCabinAvailability:', error)
 
     sendErrorNotification(error)
   }
+}
+
+function checkForChanges(currentState) {
+  const previousStateString = PropertiesService.getScriptProperties().getProperty(APP_PROPERTIES.PREVIOUS_STATE)
+  const previousState = previousStateString ? JSON.parse(previousStateString) : []
+
+  const sentNotificationsString = PropertiesService.getScriptProperties().getProperty(APP_PROPERTIES.SENT_NOTIFICATIONS)
+  const sentNotifications = sentNotificationsString ? JSON.parse(sentNotificationsString) : {}
+
+  const changes = []
+
+  currentState.forEach(cabin => {
+    const cabinNotifications = sentNotifications[cabin.id] || []
+    const previousCabinState = previousState.find(prevCabin => prevCabin.id === cabin.id)
+
+    Object.entries(cabin.availability).forEach(([date, status]) => {
+      const hasNotified = cabinNotifications.includes(date)
+      const wasPreviouslyAvailable =
+        previousCabinState && POTENTIALLY_RESERVABLE_STATUSES.includes(previousCabinState.availability[date])
+
+      if (POTENTIALLY_RESERVABLE_STATUSES.includes(status) && !hasNotified && !wasPreviouslyAvailable) {
+        changes.push({ cabinId: cabin.id, date: date, status: status })
+
+        if (!sentNotifications[cabin.id]) sentNotifications[cabin.id] = []
+
+        sentNotifications[cabin.id].push(date)
+      }
+    })
+  })
+
+  PropertiesService.getScriptProperties().setProperty(
+    APP_PROPERTIES.SENT_NOTIFICATIONS,
+    JSON.stringify(sentNotifications)
+  )
+
+  return changes
 }
 
 function processCabinData(campsites, cabins) {
@@ -76,30 +114,26 @@ function processCabinData(campsites, cabins) {
   })
 }
 
-function checkForChanges(currentState) {
-  const previousStateString = PropertiesService.getScriptProperties().getProperty(APP_PROPERTIES.PREVIOUS_STATE)
+function purgeOldNotifications() {
+  const sentNotificationsString = PropertiesService.getScriptProperties().getProperty(APP_PROPERTIES.SENT_NOTIFICATIONS)
 
-  if (!previousStateString) return [] // First run – no changes to report.
+  if (!sentNotificationsString) return
 
-  const previousState = JSON.parse(previousStateString)
-  const changes = []
+  const sentNotifications = JSON.parse(sentNotificationsString)
+  const today = new Date().toISOString().split('T')[0] // 'YYYY-MM-DD'
 
-  currentState.forEach((cabin, index) => {
-    const previousCabinState = previousState[index]
+  Object.keys(sentNotifications).forEach(cabinId => {
+    sentNotifications[cabinId] = sentNotifications[cabinId].filter(date => date >= today)
 
-    Object.entries(cabin.availability).forEach(([date, status]) => {
-      if (
-        POTENTIALLY_RESERVABLE_STATUSES.includes(status) &&
-        (!previousCabinState ||
-          !previousCabinState.availability[date] ||
-          !POTENTIALLY_RESERVABLE_STATUSES.includes(previousCabinState.availability[date]))
-      ) {
-        changes.push({ cabinId: cabin.id, date: date, status: status })
-      }
-    })
+    if (sentNotifications[cabinId].length === 0) {
+      delete sentNotifications[cabinId]
+    }
   })
 
-  return changes
+  PropertiesService.getScriptProperties().setProperty(
+    APP_PROPERTIES.SENT_NOTIFICATIONS,
+    JSON.stringify(sentNotifications)
+  )
 }
 
 function sendEmailToRecipients(changes) {
